@@ -30,6 +30,11 @@
     .contact-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px}.contact-card{padding:28px;border:1px solid #e7ece7;border-radius:12px}.contact-card h3{color:var(--forest);margin-top:0}.contact-link{display:block;text-decoration:none;font-weight:700;color:var(--green);margin:12px 0;overflow-wrap:anywhere}.contact-note{color:var(--muted);font-size:14px}
     footer{background:#10291d;color:#d7e3d9;padding:28px 22px}.footer-inner{max-width:1160px;margin:auto;display:flex;justify-content:space-between;gap:15px;flex-wrap:wrap;font-size:13px}
     .reviews{background:#f7f7f0}.review-layout{display:grid;grid-template-columns:1fr 1fr;gap:28px;align-items:start}.review-intro{padding:12px 0}.review-form{background:#fff;border:1px solid #e5ebe4;border-radius:14px;padding:28px;box-shadow:0 8px 24px rgba(20,50,30,.04)}.review-form label{display:block;font-weight:700;font-size:14px;color:var(--forest);margin:14px 0 6px}.review-form input,.review-form textarea,.review-form select{width:100%;padding:12px;border:1px solid #ccd7cc;border-radius:7px;font:inherit;background:#fff;color:var(--ink)}.review-form textarea{min-height:120px;resize:vertical}.review-form input:focus,.review-form textarea:focus,.review-form select:focus{outline:2px solid var(--lime);border-color:var(--green)}.review-help{font-size:13px;color:var(--muted);margin:12px 0 0}.review-stars{color:#d69d24;font-size:22px;letter-spacing:3px}.review-message{margin-top:12px;color:var(--green);font-size:14px;font-weight:700}
+    .review-card{background:#fff;border:1px solid #e5ebe4;border-radius:10px;padding:17px;margin:14px 0}
+    .review-card h4{margin:0;color:var(--forest);font-size:16px}
+    .review-card .review-stars{font-size:17px;letter-spacing:2px;margin:5px 0}
+    .review-card p{margin:8px 0;color:var(--ink);white-space:pre-wrap;overflow-wrap:anywhere}
+    .review-date{font-size:12px;color:var(--muted)}
     .mobile-call{display:none}
     @media(max-width:760px){nav{display:none}.hero{min-height:570px}.hero-inner{padding:76px 22px}.cards{grid-template-columns:1fr}.about-grid,.contact-grid,.review-layout{grid-template-columns:1fr;gap:28px}.about-art{min-height:290px}.checklist{grid-template-columns:1fr 1fr}section{padding:65px 20px}.mobile-call{display:inline-flex}.nav>.btn{padding:10px 13px;font-size:13px}.brand{font-size:16px}.logo{width:48px;height:48px;flex-basis:48px}}
 
@@ -117,8 +122,9 @@
           <div class="review-intro">
             <div class="review-stars" aria-label="Five star rating">★★★★★</div>
             <h3 style="color:var(--forest);font-size:25px;margin:12px 0 8px">Your feedback matters.</h3>
-            <p style="color:var(--muted)">Tell us what you thought about the service, the work, and your overall experience. Your review will be sent directly to Quinto Landscaping by email.</p>
-            <p style="color:var(--muted);font-size:14px">Reviews are not automatically posted publicly. The business can review your feedback and ask permission before publishing it on the website.</p>
+            <p style="color:var(--muted)">Tell us what you thought about the service, the work, and your overall experience. Your review will be saved and displayed on this website.</p>
+            <p style="color:var(--muted);font-size:14px">Reviews are public once submitted. Please do not include private or sensitive information.</p>
+            <div id="reviewsList" aria-live="polite" style="margin-top:28px"><p class="review-help">Loading customer reviews...</p></div>
           </div>
           <form class="review-form" id="reviewForm">
             <h3 style="margin:0;color:var(--forest)">Leave a review</h3>
@@ -135,8 +141,8 @@
             </select>
             <label for="reviewText">Your review</label>
             <textarea id="reviewText" name="review" placeholder="Tell us about your experience..." required></textarea>
-            <button class="btn dark" type="submit" style="width:100%;cursor:pointer;margin-top:16px">Send My Review</button>
-            <p class="review-help">When you press send, your email app will open with your review addressed to Quinto Landscaping. You can check it and send it from there.</p>
+            <button class="btn dark" type="submit" style="width:100%;cursor:pointer;margin-top:16px">Post My Review</button>
+            <p class="review-help">Your review will remain visible when visitors return to the website.</p>
             <p class="review-message" id="reviewMessage" role="status" aria-live="polite"></p>
           </form>
         </div>
@@ -158,19 +164,74 @@
     </section>
   </main>
   <footer><div class="footer-inner"><span>© <span id="year"></span> Quinto Landscaping. All rights reserved.</span><span>Serving Connecticut · <a href="tel:+12034944020" style="color:#d7e3d9">(203) 494-4020</a></span></div></footer>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
     document.getElementById('year').textContent = new Date().getFullYear();
-    document.getElementById('reviewForm').addEventListener('submit', function(event) {
+    const supabaseClient = window.supabase.createClient(
+      'https://lukqglklrexyewhokmbb.supabase.co',
+      'sb_publishable_DNWiVGMLCZwD9xGlnRuwFw_pXdRoX1K'
+    );
+    async function loadReviews() {
+      const list = document.getElementById('reviewsList');
+      const { data, error } = await supabaseClient.from('reviews')
+        .select('id, name, rating, review, created_at')
+        .order('created_at', { ascending: false });
+      if (error) {
+        list.textContent = 'Customer reviews are temporarily unavailable. Please try again later.';
+        console.error(error);
+        return;
+      }
+      list.replaceChildren();
+      if (!data || data.length === 0) {
+        const empty = document.createElement('p');
+        empty.className = 'review-help';
+        empty.textContent = 'Be the first to share a review.';
+        list.appendChild(empty);
+        return;
+      }
+      const heading = document.createElement('h3');
+      heading.textContent = 'Customer reviews';
+      heading.style.color = 'var(--forest)';
+      list.appendChild(heading);
+      data.forEach((r) => {
+        const card = document.createElement('article');
+        card.className = 'review-card';
+        const name = document.createElement('h4');
+        name.textContent = r.name;
+        const stars = document.createElement('div');
+        stars.className = 'review-stars';
+        stars.textContent = '★'.repeat(r.rating) + '☆'.repeat(5-r.rating);
+        const body = document.createElement('p');
+        body.textContent = r.review;
+        const date = document.createElement('div');
+        date.className = 'review-date';
+        date.textContent = new Date(r.created_at).toLocaleDateString();
+        card.append(name, stars, body, date);
+        list.appendChild(card);
+      });
+    }
+    document.getElementById('reviewForm').addEventListener('submit', async function(event) {
       event.preventDefault();
       const name = document.getElementById('reviewName').value.trim();
-      const rating = document.getElementById('reviewRating').value;
+      const rating = Number(document.getElementById('reviewRating').value.split(' ')[0]);
       const review = document.getElementById('reviewText').value.trim();
+      const message = document.getElementById('reviewMessage');
+      const button = this.querySelector('button[type="submit"]');
       if (!name || !rating || !review) return;
-      const subject = encodeURIComponent('Customer Review - Quinto Landscaping');
-      const body = encodeURIComponent('Customer name: ' + name + '\nRating: ' + rating + '\n\nReview:\n' + review);
-      document.getElementById('reviewMessage').textContent = 'Your email app is opening so you can send your review.';
-      window.location.href = 'mailto:quintolandscaping18@gmail.com?subject=' + subject + '&body=' + body;
+      button.disabled = true;
+      message.textContent = 'Saving your review...';
+      const { error } = await supabaseClient.from('reviews').insert([{name, rating, review}]);
+      button.disabled = false;
+      if (error) {
+        console.error(error);
+        message.textContent = 'Sorry, your review could not be saved. Please try again.';
+        return;
+      }
+      this.reset();
+      message.textContent = 'Thank you! Your review has been saved and is now visible on the website.';
+      await loadReviews();
     });
+    loadReviews();
   </script>
 </body>
 </html>
